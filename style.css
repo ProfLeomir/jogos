@@ -1,0 +1,208 @@
+/* 1. IMAGEM DE FUNDO E ESTILOS GERAIS */
+body {
+    /* Define a imagem de fundo */
+    background-image: url('images/fundo.jpg');
+
+    /* *** CÓDIGO EDITADO PARA REDIMENSIONAR O FUNDO *** */
+    /* Define o tamanho da imagem para 70% da largura da tela. Altere este valor (ex: 50%, 90%) se precisar de um tamanho diferente. */
+    background-size: 50% auto;
+
+    /* Adicionado: Garante que a imagem não se repita quando o tamanho é reduzido */
+    background-repeat: no-repeat;
+
+    /* Fixa a imagem para que o conteúdo possa rolar sobre ela */
+    background-attachment: fixed;
+
+    /* Centraliza a imagem */
+    background-position: center;
+    /* ************************************************* */
+
+    font-family: Arial, sans-serif;
+    margin: 0; /* Remove margem padrão do body */
+    padding: 0;
+    color: #333; /* Cor do texto padrão */
+}
+
+/* 2. ESTILOS DO CABEÇALHO (HEADER) */
+header {
+    background-color: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente para destaque */
+    color: white;
+    padding: 20px 0;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Conteúdo do Header (Foto + Título) */
+.header-content {
+    display: flex; /* Para alinhar a foto e o título lado a lado */
+    align-items: center; /* Centraliza verticalmente a foto e o título */
+    justify-content: center; /* Centraliza horizontalmente se houver espaço extra */
+    max-width: 1200px; /* Limite a largura para não esticar muito em telas grandes */
+    margin: 0 auto; /* Centraliza o conteúdo do header */
+    padding: 0 20px; /* Um pouco de padding nas laterais */
+}
+
+/* Título Principal */
+header h1 {
+    margin: 0;
+    font-size: 2.5em; /* Tamanho original */
+    text-shadow: 2px 2px 4px #000;
+}
+
+/* Foto de Perfil */
+.profile-pic {
+    width: 80px; /* Tamanho da foto */
+    height: 80px; /* Altura igual à largura para ficar circular */
+    border-radius: 50%; /* Transforma a imagem em um círculo */
+    border: 3px solid white; /* Borda branca ao redor da foto */
+    object-fit: cover; /* Garante que a imagem preencha o círculo sem distorcer */
+    margin-right: 20px; /* Espaço entre a foto e o título */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Sombra suave para destaque */
+}
+
+
+/* 3. ESTILOS DE ORGANIZAÇÃO (CATEGORIAS E CONTAINERS) */
+
+/* Títulos das Categorias (H2) */
+.category-title {
+    text-align: center;
+    color: #4CAF50; /* Verde forte para destaque */
+    background-color: rgba(255, 255, 255, 0.95); /* Fundo branco quase sólido */
+    padding: 15px 10px;
+    margin-top: 40px;
+    margin-bottom: 20px;
+    font-size: 2.2em;
+    border-bottom: 4px solid #f44336; /* Linha vermelha para sublinhar */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Contêiner para os cards dos jogos */
+.games-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 20px 10px;
+    gap: 20px;
+}
+
+
+/* 4. ESTILOS PARA CADA JOGO (GAME CARD) */
+.game-card {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 3px solid #4CAF50;
+    border-radius: 10px;
+    padding: 20px;
+
+    width: 90%;
+    max-width: 350px;
+
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+/* Efeito ao passar o mouse */
+.game-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Títulos dos Jogos (H3) */
+.game-card h3 {
+    color: #007bff;
+    margin-top: 0;
+    font-size: 1.5em;
+}
+
+/* Estilo para a imagem dentro do card */
+.game-card img {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+}
+
+.game-card p {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 20px;
+    min-height: 40px;
+}
+
+/* Estilo para o link "Jogar" (Botão) */
+.game-card a {
+    display: block;
+    background-color: #f44336;
+    color: white;
+    padding: 10px 15px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.game-card a:hover {
+    background-color: #d32f2f;
+}
+
+
+/* 5. ESTILOS PARA O RODAPÉ (FOOTER) */
+footer {
+    background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro para contraste */
+    color: #fff;
+    text-align: center;
+    padding: 20px 0;
+    margin-top: 40px;
+    border-top: 5px solid #4CAF50; /* Linha verde no topo do rodapé */
+}
+
+footer p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+/* Estilo para a área do contador */
+.contador-visitas {
+    margin-top: 10px;
+}
+
+
+/* 6. MÍDIA QUERY PARA RESPONSIVIDADE EM CELULARES */
+@media (max-width: 700px) {
+
+    /* Ajuste para o header e foto */
+    .header-content {
+        flex-direction: column; /* Coloca a foto em cima do título */
+        padding: 10px;
+    }
+
+    .profile-pic {
+        width: 60px;
+        height: 60px;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    header h1 {
+        font-size: 1.5em; /* Diminui o título principal */
+    }
+
+    .games-container {
+        padding: 10px;
+    }
+
+    .game-card {
+        width: 100%; /* Ocupa a largura total da tela */
+        max-width: 400px;
+        padding: 15px;
+    }
+
+    .category-title {
+        font-size: 1.5em;
+        padding: 10px;
+    }
+}
