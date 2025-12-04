@@ -1,208 +1,405 @@
-/* 1. IMAGEM DE FUNDO E ESTILOS GERAIS */
-body {
-    /* Define a imagem de fundo */
-    background-image: url('images/fundo.jpg');
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogos de Matemática - Professor Leomir Grave</title>
+    <!-- Importações Firebase e Fontes -->
+    <script type="module">
+        // Variáveis globais fornecidas pelo ambiente (Obrigatórias)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-    /* *** CÓDIGO EDITADO PARA REDIMENSIONAR O FUNDO *** */
-    /* Define o tamanho da imagem para 70% da largura da tela. Altere este valor (ex: 50%, 90%) se precisar de um tamanho diferente. */
-    background-size: 50% auto;
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    /* Adicionado: Garante que a imagem não se repita quando o tamanho é reduzido */
-    background-repeat: no-repeat;
+        // Configurações do Firebase
+        let app;
+        let db;
+        let auth;
+        let userId = null;
 
-    /* Fixa a imagem para que o conteúdo possa rolar sobre ela */
-    background-attachment: fixed;
+        // Função utilitária para garantir o caminho correto (Dados públicos)
+        function getPublicDocPath(collectionName, docId) {
+            return `artifacts/${appId}/public/data/${collectionName}/${docId}`;
+        }
 
-    /* Centraliza a imagem */
-    background-position: center;
-    /* ************************************************* */
+        // Função de inicialização e autenticação
+        async function initializeAndAuthenticate() {
+            if (!firebaseConfig) {
+                console.error("Firebase config not available. Cannot initialize Firestore.");
+                return;
+            }
 
-    font-family: Arial, sans-serif;
-    margin: 0; /* Remove margem padrão do body */
-    padding: 0;
-    color: #333; /* Cor do texto padrão */
-}
+            try {
+                // 1. Inicializa o Firebase
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                // Ativa log para debug (opcional)
+                setLogLevel('Debug'); 
 
-/* 2. ESTILOS DO CABEÇALHO (HEADER) */
-header {
-    background-color: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente para destaque */
-    color: white;
-    padding: 20px 0;
-    text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
+                // 2. Autentica o usuário
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
-/* Conteúdo do Header (Foto + Título) */
-.header-content {
-    display: flex; /* Para alinhar a foto e o título lado a lado */
-    align-items: center; /* Centraliza verticalmente a foto e o título */
-    justify-content: center; /* Centraliza horizontalmente se houver espaço extra */
-    max-width: 1200px; /* Limite a largura para não esticar muito em telas grandes */
-    margin: 0 auto; /* Centraliza o conteúdo do header */
-    padding: 0 20px; /* Um pouco de padding nas laterais */
-}
+                // 3. Obtém o userId após a autenticação
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Usuário autenticado. UID:", userId);
+                        // Inicia o contador de visitas
+                        handleVisitCount(); 
+                    } else {
+                        // Se a autenticação falhar ou for anônima sem token
+                        userId = crypto.randomUUID(); 
+                        console.log("Usuário não autenticado. UID temporário:", userId);
+                    }
+                });
 
-/* Título Principal */
-header h1 {
-    margin: 0;
-    font-size: 2.5em; /* Tamanho original */
-    text-shadow: 2px 2px 4px #000;
-}
+            } catch (error) {
+                console.error("Erro na inicialização ou autenticação do Firebase:", error);
+            }
+        }
 
-/* Foto de Perfil */
-.profile-pic {
-    width: 80px; /* Tamanho da foto */
-    height: 80px; /* Altura igual à largura para ficar circular */
-    border-radius: 50%; /* Transforma a imagem em um círculo */
-    border: 3px solid white; /* Borda branca ao redor da foto */
-    object-fit: cover; /* Garante que a imagem preencha o círculo sem distorcer */
-    margin-right: 20px; /* Espaço entre a foto e o título */
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Sombra suave para destaque */
-}
+        // Função para incrementar o contador de visitas e monitorar em tempo real
+        async function handleVisitCount() {
+            const docRef = doc(db, getPublicDocPath('stats', 'visitCount'));
+            
+            // 1. Incrementa a contagem de visitas (Transação simples)
+            try {
+                const docSnap = await getDoc(docRef);
+                const currentCount = docSnap.exists() ? docSnap.data().count : 0;
+                await setDoc(docRef, { count: currentCount + 1 });
+                console.log("Contador de visitas atualizado.");
+            } catch (error) {
+                console.error("Erro ao atualizar o contador de visitas:", error);
+            }
+
+            // 2. Monitora a contagem em tempo real (onSnapshot)
+            const countElement = document.getElementById('visit-counter');
+            if (countElement) {
+                onSnapshot(docRef, (doc) => {
+                    if (doc.exists()) {
+                        const count = doc.data().count;
+                        countElement.textContent = `Visitas: ${count}`;
+                    } else {
+                        countElement.textContent = 'Visitas: 0';
+                    }
+                }, (error) => {
+                    console.error("Erro ao monitorar visitas:", error);
+                    countElement.textContent = 'Erro no Contador';
+                });
+            }
+        }
+
+        // Inicializa ao carregar a página
+        window.onload = initializeAndAuthenticate;
+    </script>
+    
+    <!-- Link para ícones (Font Awesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- Seu CSS (Copiado e Adicionado Aqui) -->
+    <style>
+        /* 1. IMAGEM DE FUNDO E ESTILOS GERAIS */
+        body {
+            /* Define a imagem de fundo */
+            background-image: url('images/fundo.jpg');
+
+            /* *** CÓDIGO EDITADO PARA REDIMENSIONAR O FUNDO *** */
+            /* Define o tamanho da imagem para 50% da largura da tela. */
+            background-size: 50% auto;
+            
+            /* Garante que a imagem não se repita quando o tamanho é reduzido */
+            background-repeat: no-repeat;
+            
+            /* Fixa a imagem para que o conteúdo possa rolar sobre ela */
+            background-attachment: fixed;
+            
+            /* Centraliza a imagem */
+            background-position: center;
+            /* ************************************************* */
+
+            font-family: 'Inter', Arial, sans-serif; /* Usando Inter como padrão */
+            margin: 0; /* Remove margem padrão do body */
+            padding: 0;
+            color: #333; /* Cor do texto padrão */
+        }
+        
+        /* 2. ESTILOS DO CABEÇALHO (HEADER) */
+        header {
+            background-color: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente para destaque */
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Conteúdo do Header (Foto + Título) */
+        .header-content {
+            display: flex; /* Para alinhar a foto e o título lado a lado */
+            align-items: center; /* Centraliza verticalmente a foto e o título */
+            justify-content: center; /* Centraliza horizontalmente se houver espaço extra */
+            max-width: 1200px; /* Limite a largura para não esticar muito em telas grandes */
+            margin: 0 auto; /* Centraliza o conteúdo do header */
+            padding: 0 20px; /* Um pouco de padding nas laterais */
+        }
+
+        /* Título Principal */
+        header h1 {
+            margin: 0;
+            font-size: 2.5em; /* Tamanho original */
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        /* Foto de Perfil */
+        .profile-pic {
+            width: 80px; /* Tamanho da foto */
+            height: 80px; /* Altura igual à largura para ficar circular */
+            border-radius: 50%; /* Transforma a imagem em um círculo */
+            border: 3px solid white; /* Borda branca ao redor da foto */
+            object-fit: cover; /* Garante que a imagem preencha o círculo sem distorcer */
+            margin-right: 20px; /* Espaço entre a foto e o título */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Sombra suave para destaque */
+        }
+
+        /* 3. ESTILOS DE ORGANIZAÇÃO (CATEGORIAS E CONTAINERS) */
+
+        /* Títulos das Categorias (H2) */
+        .category-title {
+            text-align: center;
+            color: #4CAF50; /* Verde forte para destaque */
+            background-color: rgba(255, 255, 255, 0.95); /* Fundo branco quase sólido */
+            padding: 15px 10px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 2.2em;
+            border-bottom: 4px solid #f44336; /* Linha vermelha para sublinhar */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 8px 8px 0 0; /* Arredondado no topo */
+        }
+        
+        /* Contêiner para os cards dos jogos */
+        .games-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px 10px;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 4. ESTILOS PARA CADA JOGO (GAME CARD) */
+        .game-card {
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+
+            width: 90%;
+            max-width: 350px;
+
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        /* Efeito ao passar o mouse */
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Títulos dos Jogos (H3) */
+        .game-card h3 {
+            color: #007bff;
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        /* Estilo para a imagem dentro do card */
+        .game-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+        }
+
+        .game-card p {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 20px;
+            min-height: 40px;
+        }
+
+        /* Estilo para o link "Jogar" (Botão) */
+        .game-card a {
+            display: block;
+            background-color: #f44336;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .game-card a:hover {
+            background-color: #d32f2f;
+        }
 
 
-/* 3. ESTILOS DE ORGANIZAÇÃO (CATEGORIAS E CONTAINERS) */
+        /* 5. ESTILOS PARA O RODAPÉ (FOOTER) */
+        footer {
+            background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro para contraste */
+            color: #fff;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 40px;
+            border-top: 5px solid #4CAF50; /* Linha verde no topo do rodapé */
+        }
 
-/* Títulos das Categorias (H2) */
-.category-title {
-    text-align: center;
-    color: #4CAF50; /* Verde forte para destaque */
-    background-color: rgba(255, 255, 255, 0.95); /* Fundo branco quase sólido */
-    padding: 15px 10px;
-    margin-top: 40px;
-    margin-bottom: 20px;
-    font-size: 2.2em;
-    border-bottom: 4px solid #f44336; /* Linha vermelha para sublinhar */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-}
+        footer p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
 
-/* Contêiner para os cards dos jogos */
-.games-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    padding: 20px 10px;
-    gap: 20px;
-}
+        /* Estilo para a área do contador */
+        .contador-visitas {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #4CAF50; /* Cor verde para destaque do contador */
+        }
 
 
-/* 4. ESTILOS PARA CADA JOGO (GAME CARD) */
-.game-card {
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 3px solid #4CAF50;
-    border-radius: 10px;
-    padding: 20px;
+        /* 6. MÍDIA QUERY PARA RESPONSIVIDADE EM CELULARES */
+        @media (max-width: 700px) {
 
-    width: 90%;
-    max-width: 350px;
+            /* Ajuste para o header e foto */
+            .header-content {
+                flex-direction: column; /* Coloca a foto em cima do título */
+                padding: 10px;
+            }
 
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-    text-align: center;
-    transition: transform 0.3s ease;
-}
+            .profile-pic {
+                width: 60px;
+                height: 60px;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
 
-/* Efeito ao passar o mouse */
-.game-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
-}
+            header h1 {
+                font-size: 1.5em; /* Diminui o título principal */
+            }
 
-/* Títulos dos Jogos (H3) */
-.game-card h3 {
-    color: #007bff;
-    margin-top: 0;
-    font-size: 1.5em;
-}
+            .games-container {
+                padding: 10px;
+            }
 
-/* Estilo para a imagem dentro do card */
-.game-card img {
-    width: 100%;
-    height: auto;
-    border-radius: 5px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-}
+            .game-card {
+                width: 100%; /* Ocupa a largura total da tela */
+                max-width: 400px;
+                padding: 15px;
+            }
 
-.game-card p {
-    font-size: 0.9em;
-    color: #555;
-    margin-bottom: 20px;
-    min-height: 40px;
-}
+            .category-title {
+                font-size: 1.5em;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
 
-/* Estilo para o link "Jogar" (Botão) */
-.game-card a {
-    display: block;
-    background-color: #f44336;
-    color: white;
-    padding: 10px 15px;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background-color 0.3s;
-}
+    <header>
+        <div class="header-content">
+            <!-- Usando um placeholder de imagem para a foto de perfil -->
+            <img src="https://placehold.co/80x80/4CAF50/FFFFFF?text=LG" class="profile-pic" alt="Foto do Professor Leomir Grave" onerror="this.onerror=null;this.src='https://placehold.co/80x80/4CAF50/FFFFFF?text=LG';">
+            <h1><i class="fas fa-dice"></i> Jogos de Matemática - Professor Leomir Grave <i class="fas fa-dice"></i></h1>
+        </div>
+    </header>
 
-.game-card a:hover {
-    background-color: #d32f2f;
-}
+    <main>
+        
+        <!-- ============================================== -->
+        <!-- 1. SEÇÃO EAC - Estudos de Aprendizagem Contínua -->
+        <!-- Essa seção é a primeira e foi garantida que apareça -->
+        <!-- ============================================== -->
+        <h2 class="category-title"><i class="fas fa-scroll"></i> EAC - Estudos de Aprendizagem Contínua - $3^\circ$ Trimestre</h2>
+        <div class="games-container">
+            
+            <!-- Card 1: EAC Geometria (BNCC EF06MA17 - 6º Ano) -->
+            <div class="game-card">
+                <h3>1. Contando Vértices, Faces e Arestas</h3>
+                <!-- Imagem placeholder com o código da habilidade -->
+                <img src="https://placehold.co/300x180/F0F8FF/333333?text=Habilidade+EF06MA17" alt="Contando Vértices, Faces e Arestas" onerror="this.onerror=null; this.src='https://placehold.co/300x180/F0F8FF/333333?text=Habilidade+EF06MA17';">
+                <p>Reconhecer e estabelecer relações entre o número de vértices, faces e arestas de prismas e pirâmides (6º ano).</p>
+                <a href="#" onclick="alert('Funcionalidade ainda não implementada para este card.')">INICIAR EAC</a>
+            </div>
 
+            <!-- Card 2: EAC Volume (BNCC EF09MA19 - 9º Ano) -->
+            <div class="game-card">
+                <h3>2. Cálculo de Volume (Prismas e Cilindros)</h3>
+                <!-- Imagem placeholder com o código da habilidade -->
+                <img src="https://placehold.co/300x180/E0FFFF/333333?text=Habilidade+EF09MA19" alt="Cálculo de Volume" onerror="this.onerror=null; this.src='https://placehold.co/300x180/E0FFFF/333333?text=Habilidade+EF09MA19';">
+                <p>Resolver problemas que envolvam medidas de volumes de prismas e de cilindros retos, com uso de expressões de cálculo (9º ano).</p>
+                <a href="#" onclick="alert('Funcionalidade ainda não implementada para este card.')">INICIAR EAC</a>
+            </div>
 
-/* 5. ESTILOS PARA O RODAPÉ (FOOTER) */
-footer {
-    background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro para contraste */
-    color: #fff;
-    text-align: center;
-    padding: 20px 0;
-    margin-top: 40px;
-    border-top: 5px solid #4CAF50; /* Linha verde no topo do rodapé */
-}
+            <!-- Card 3: EAC Transformações Geométricas (BNCC EF07MA20 - 7º Ano) -->
+            <div class="game-card">
+                <h3>3. Simetria no Plano Cartesiano</h3>
+                <!-- Imagem placeholder com o código da habilidade -->
+                <img src="https://placehold.co/300x180/FAFAD2/333333?text=Habilidade+EF07MA20" alt="Simetria no Plano Cartesiano" onerror="this.onerror=null; this.src='https://placehold.co/300x180/FAFAD2/333333?text=Habilidade+EF07MA20';">
+                <p>Reconhecer e representar, no plano cartesiano, o simétrico de figuras em relação aos eixos e à origem (7º ano).</p>
+                <a href="#" onclick="alert('Funcionalidade ainda não implementada para este card.')">INICIAR EAC</a>
+            </div>
 
-footer p {
-    margin: 5px 0;
-    font-size: 0.9em;
-}
+        </div>
 
-/* Estilo para a área do contador */
-.contador-visitas {
-    margin-top: 10px;
-}
+        <!-- ============================================== -->
+        <!-- 2. SEÇÃO CONTEÚDO REGULAR (EXEMPLO) -->
+        <!-- ============================================== -->
+        <h2 class="category-title"><i class="fas fa-calculator"></i> Conteúdo Regular</h2>
+        <div class="games-container">
 
+             <!-- Card Conteúdo 1: Área e Perímetro (8º Ano) -->
+            <div class="game-card">
+                <h3>Área e Perímetro de Quadriláteros</h3>
+                <img src="https://placehold.co/300x180/FFE4B5/333333?text=EF08MA17" alt="Área e Perímetro" onerror="this.onerror=null; this.src='https://placehold.co/300x180/FFE4B5/333333?text=EF08MA17';">
+                <p>Resolver problemas que envolvam o cálculo de área e perímetro de figuras planas (quadriláteros) usando fórmulas.</p>
+                <a href="#" onclick="alert('Funcionalidade ainda não implementada para este card.')">PRATICAR</a>
+            </div>
 
-/* 6. MÍDIA QUERY PARA RESPONSIVIDADE EM CELULARES */
-@media (max-width: 700px) {
+            <!-- Card Conteúdo 2: Semelhança de Triângulos (9º Ano) -->
+            <div class="game-card">
+                <h3>Semelhança de Triângulos</h3>
+                <img src="https://placehold.co/300x180/F0E68C/333333?text=EF09MA14" alt="Semelhança de Triângulos" onerror="this.onerror=null; this.src='https://placehold.co/300x180/F0E68C/333333?text=EF09MA14';">
+                <p>Demonstrar e utilizar as relações de proporcionalidade e semelhança entre triângulos para resolver problemas (9º ano).</p>
+                <a href="#" onclick="alert('Funcionalidade ainda não implementada para este card.')">PRATICAR</a>
+            </div>
+            
+        </div>
 
-    /* Ajuste para o header e foto */
-    .header-content {
-        flex-direction: column; /* Coloca a foto em cima do título */
-        padding: 10px;
-    }
+    </main>
 
-    .profile-pic {
-        width: 60px;
-        height: 60px;
-        margin-right: 0;
-        margin-bottom: 10px;
-    }
+    <footer>
+        <p>&copy; 2025 Professor Leomir Grave. Todos os direitos reservados.</p>
+        <p class="contador-visitas" id="visit-counter">Carregando Visitas...</p>
+        <p>Desenvolvido com <i class="fas fa-heart" style="color: #f44336;"></i> para a Educação.</p>
+    </footer>
 
-    header h1 {
-        font-size: 1.5em; /* Diminui o título principal */
-    }
-
-    .games-container {
-        padding: 10px;
-    }
-
-    .game-card {
-        width: 100%; /* Ocupa a largura total da tela */
-        max-width: 400px;
-        padding: 15px;
-    }
-
-    .category-title {
-        font-size: 1.5em;
-        padding: 10px;
-    }
-}
+</body>
+</html>
